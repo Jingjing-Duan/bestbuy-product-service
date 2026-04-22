@@ -60,7 +60,12 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(savedProduct);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+        // 👇 处理 SKU 重复（MongoDB unique error）
+        if (error.code === 11000) {
+            return res.status(400).json({
+            message: 'SKU already exists'
+            });
+        }
   }
 });
 
