@@ -1,0 +1,45 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: bestbuy-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: bestbuy-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  product-service:
+    build: .
+    container_name: bestbuy-product-service
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/bestbuy-products
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - mongo
+      - rabbitmq
+
+  inventory-consumer:
+    build:
+      context: ../bestbuy-inventory-consumer
+    container_name: bestbuy-inventory-consumer
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/bestbuy-inventory
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - QUEUE_NAME=product.created
+    depends_on:
+      - mongo
+      - rabbitmq
+
+volumes:
+  mongo-data:
