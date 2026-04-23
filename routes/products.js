@@ -58,14 +58,17 @@ router.post('/', async (req, res) => {
       console.log('RabbitMQ channel not available');
     }
 
-    res.status(201).json(savedProduct);
+    return res.status(201).json(savedProduct);
   } catch (error) {
-        // 👇 处理 SKU 重复（MongoDB unique error）
-        if (error.code === 11000) {
-            return res.status(400).json({
-            message: 'SKU already exists'
-            });
-        }
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'SKU already exists'
+      });
+    }
+
+    return res.status(500).json({
+      message: error.message || 'Failed to create product'
+    });
   }
 });
 
@@ -99,7 +102,7 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
-});
+}); 
 
 // DELETE /products/:id
 router.delete('/:id', async (req, res) => {
