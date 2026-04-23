@@ -1,16 +1,16 @@
 const express = require('express');
 const Product = require('../models/Product');
+const { getChannel } = require('../utils/rabbitmq');
 
 const router = express.Router();
-const { getChannel } = require('../utils/rabbitmq');
 
 // GET /products
 router.get('/', async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
-    res.json(products);
+    return res.json(products);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message || 'Failed to load products' });
   }
 });
 
@@ -23,9 +23,9 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    res.json(product);
+    return res.json(product);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message || 'Failed to load product' });
   }
 });
 
@@ -53,13 +53,15 @@ router.post('/', async (req, res) => {
         Buffer.from(JSON.stringify(savedProduct)),
         { persistent: true }
       );
-      console.log('Message sent to RabbitMQ:', savedProduct.sku);
+      console.log('✅ Message sent to RabbitMQ:', savedProduct.sku);
     } else {
-      console.log('RabbitMQ channel not available');
+      console.log('⚠️ RabbitMQ channel not available');
     }
 
     return res.status(201).json(savedProduct);
   } catch (error) {
+    console.error('❌ Error creating product:', error.message);
+
     if (error.code === 11000) {
       return res.status(400).json({
         message: 'SKU already exists'
@@ -98,11 +100,21 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    res.json(updatedProduct);
+    return res.json(updatedProduct);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('❌ Error updating product:', error.message);
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'SKU already exists'
+      });
+    }
+
+    return res.status(400).json({
+      message: error.message || 'Failed to update product'
+    });
   }
-}); 
+});
 
 // DELETE /products/:id
 router.delete('/:id', async (req, res) => {
@@ -113,9 +125,13 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    res.json({ message: 'Product deleted successfully' });
+    return res.json({ message: 'Product deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('❌ Error deleting product:', error.message);
+
+    return res.status(500).json({
+      message: error.message || 'Failed to delete product'
+    });
   }
 });
 
